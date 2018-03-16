@@ -1,14 +1,16 @@
 cmake_minimum_required(VERSION 3.8)
-project(background_subtracted)
+project(bgsc)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp psnr_ssim.hpp psnr_ssim.cpp bgsc.cpp bgsc.hpp)
+set(SOURCE_FILES main.cpp src/psnr_ssim.hpp src/psnr_ssim.cpp src/bgsc.cpp src/bgsc.hpp)
 
 find_package(OpenCV REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(background_subtracted ${SOURCE_FILES})
+include_directories(src)
 
-target_link_libraries(background_subtracted ${OpenCV_LIBS})
+add_executable(bgsc ${SOURCE_FILES})
+
+target_link_libraries(bgsc ${OpenCV_LIBS})

@@ -2,3 +2,4 @@ cmake-build-debug/
 *.avi
 build/
 out/
+.idea/
