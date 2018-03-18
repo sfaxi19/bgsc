@@ -50,11 +50,11 @@ int main(int argc, char *argv[]) {
         processVideo(argv[2], atoi(argv[3]), atoi(argv[4]));
     }
     if (argMode == "-r") {
-        if (argc != 4) {
+        if (argc != 5) {
             cerr << "Incorret input args!" << endl;
             return EXIT_FAILURE;
         }
-        processVideoRecon(argv[2], argv[3]);
+        processVideoRecon(argv[2], argv[3], argv[4]);
     }
     destroyAllWindows();
     return EXIT_SUCCESS;

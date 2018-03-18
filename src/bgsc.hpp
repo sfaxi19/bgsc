@@ -7,6 +7,6 @@
 
 void processVideo(char *videoFilename, int thr1, int thr2);
 
-void processVideoRecon(char *basefile, char *enhancefile);
+void processVideoRecon(char *basefile, char *enhancefile, char *output);
 
 #endif //BGSC_HPP
