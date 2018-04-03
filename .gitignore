@@ -3,3 +3,4 @@ cmake-build-debug/
 build/
 out/
 .idea/
+cmake-build-release/

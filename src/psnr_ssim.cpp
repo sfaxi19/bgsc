@@ -30,15 +30,42 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2) {
         psnr += round(psnr_cur);
         psnr_cnt++;
     }
-    //cout << "sum = " << psnr << endl;
-    //cout << "cnt = " << psnr_cnt << endl;
     return (double) psnr / psnr_cnt;
 }
 
-double psnr_between_videos(const char *filepath1, const char *filepath2) {
+double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapture &video3) {
+    Mat vid1;
+    Mat vid2;
+    Mat vid_mask;
+    uint64_t psnr = 0;
+    int psnr_cnt = 0;
+    int keyboard = 0;
+    int frame_idx = 0;
+    while ((char) keyboard != 'q' && (char) keyboard != 27) {
+
+        if (!(video1.read(vid1) && video2.read(vid2) && video3.read(vid_mask))) {
+            cerr << "Unable to read next frame." << endl;
+            cerr << "Exiting..." << endl;
+            break;
+        }
+        double psnr_cur = getPSNR(vid1, vid2, vid_mask);
+        //std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
+        psnr += round(psnr_cur);
+        psnr_cnt++;
+    }
+    return (double) psnr / psnr_cnt;
+}
+
+double psnr_between_videos(const char *filepath1, const char *filepath2, const char *filepath3) {
     VideoCapture file1(filepath1);
     VideoCapture file2(filepath2);
-    return psnr_between_videos(file1, file2);
+    if (filepath3 == nullptr) {
+        return psnr_between_videos(file1, file2);
+    } else {
+        VideoCapture file3(filepath3);
+        return psnr_between_videos(file1, file2, file3);
+    }
+
 }
 
 double mssim_between_videos(VideoCapture &video1, VideoCapture &video2) {
@@ -60,23 +87,47 @@ double mssim_between_videos(VideoCapture &video1, VideoCapture &video2) {
     return mssim / mssim_cnt;
 }
 
-double getPSNR(const Mat &I1, const Mat &I2) {
+double getPSNR(const Mat I1, const Mat I2) {
     Mat s1;
     absdiff(I1, I2, s1);       // |I1 - I2|
     s1.convertTo(s1, CV_32F);  // cannot make a square on 8 bits
     s1 = s1.mul(s1);           // |I1 - I2|^2
-
     Scalar s = sum(s1);        // sum elements per channel
 
     double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
 
-    //if (sse <= 1e-10) {
-    //    return 0; // for small values return zero
-    //} else {
     double mse = sse / (double) (I1.channels() * I1.total());
     double psnr = 10.0 * log10((255 * 255) / mse);
     return psnr;
-    //}
+}
+
+double getPSNR(const Mat I1, const Mat I2, const Mat mask) {
+    threshold(mask, mask, 128, 255, CV_8U);
+    Mat s1;
+    size_t num = 0;
+    Scalar s;
+
+    absdiff(I1, I2, s1);       // |I1 - I2|
+    Mat s2;
+    s2 = 0;
+    s1.copyTo(s2, mask);
+    s2.convertTo(s2, CV_32F);  // cannot make a square on 8 bits
+    //s1.copyTo(s1, mask);
+    s2 = s2.mul(s2);
+    static int cnt = 0;
+    Scalar num_s = sum(mask);
+
+    //std::cout << num_s.val[0] / 255 << endl;
+
+    num = static_cast<size_t>(num_s.val[0] / 255);
+    if (num == 0) return 0;
+    s = sum(s2);
+
+    double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+
+    double mse = sse / (double) (I1.channels() * num);
+    double psnr = 10.0 * log10((255 * 255) / mse);
+    return psnr;
 }
 
 Scalar getMSSIM(const Mat &i1, const Mat &i2) {
