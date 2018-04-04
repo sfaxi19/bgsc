@@ -4,3 +4,4 @@ build/
 out/
 .idea/
 cmake-build-release/
+resources/

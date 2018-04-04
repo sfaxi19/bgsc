@@ -13,7 +13,7 @@ def isfloat(value):
   except:
     return False
 if len(sys.argv) != 5:
-    print("arg1: input_name;\narg2: output_dir;\narg3: check_name;\narg4: mask_name.")
+    print("Usage:\narg1: input_name;\narg2: output_dir;\narg3: check_name;\narg4: mask_name.")
     exit()
 input_name = sys.argv[1]
 output_dir = sys.argv[2]
