@@ -16,6 +16,7 @@ using namespace cv;
 #else
 #define DEBUG if(true)
 #endif
+
 Mat ShowManyImages(string title, int nArgs, ...) {
     //int nArgs = nImgs * 2;
     int size;
@@ -235,11 +236,13 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
     system("mkdir -p results/rebuilt/");
     system("mkdir -p results/bgu/");
     system("mkdir -p results/origin/");
+    system("mkdir -p results/fg/");
 
     system("rm results/rebuilt/*");
     system("rm results/bgu/*");
     system("rm results/compress/*");
     system("rm results/origin/*");
+    system("rm results/fg/*");
 
     const char *originFilepath = "results/origin.mkv";
     const char *bgFilepath = "results/bg.mkv";
@@ -310,27 +313,47 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         //imshow("cannydiff", cannyTmp1);
         //imshow("mask", mask2);
 
+        /***************************************
+         *           Foreground frame
+         ***************************************/
         Mat frameFG;
         frame.copyTo(frameFG, maskFG);
 
-
-        Mat rebuilt(frame.size(), frame.type());
+        /***************************************
+         *             Blur frame
+         ***************************************/
         Mat frameBlur;
-        //blur(frameBG, frameBlur, Size(5, 5));
-        //frameBlur.copyTo(rebuilt);
-        frameBG.copyTo(rebuilt);
+        frameBG.copyTo(frameBlur,maskFG);
+        frame.copyTo(frameBlur,~maskFG);
+        blur(frameBlur, frameBlur, Size(10, 10));
+
+        /***************************************
+         *            Rebuilt frame
+         ***************************************/
+        Mat rebuilt(frame.size(), frame.type());
+        frameBlur.copyTo(rebuilt);
+        //frameBG.copyTo(rebuilt);
         frameFG.copyTo(rebuilt, maskFG);
 
+        /***************************************
+         *             BGU frame
+         ***************************************/
         Mat diffMat = differenceMat(frame, rebuilt, thr2);
         Mat frameBGU = diffMat; //additionMat(frameBG, diffMat);
         //frame.copyTo(frameBG, maskNoize - maskFG);
 
+        /***************************************
+         *          Full rebuilt frame
+         ***************************************/
         Mat full_rebuilt(frame.size(), frame.type());
         rebuilt.copyTo(full_rebuilt);
-        Mat diffMatRebuilt = frameBGU; //differenceMat(frameBG, frameBGU);
+        Mat diffMatRebuilt = frameBGU;//differenceMat(frameBG, frameBGU);//frameBGU;
         full_rebuilt = additionMat(full_rebuilt, diffMatRebuilt);
 
-        psnr_rebuilt = getPSNR(frame, rebuilt, maskFG);
+        /***************************************
+         *             Calc PSNR
+         ***************************************/
+        psnr_rebuilt = getPSNR(frame, rebuilt);//, maskFG);
         psnr_fullrebuilt = getPSNR(frame, full_rebuilt);
 
         Mat frameCells;
@@ -350,12 +373,15 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
                                         string("N"), frameBGU);
         }
         static double fps = capture.get(CAP_PROP_FPS);
+
         imwrite("results/rebuilt/in" + to_string(frameIdx) + ".bmp", rebuilt);
         imwrite("results/bgu/in" + to_string(frameIdx) + ".bmp", frameBGU);
         imwrite("results/origin/in" + to_string(frameIdx) + ".bmp", frame);
+        imwrite("results/fg/in" + to_string(frameIdx) + ".bmp", frameFG);
+
         static VideoWriter originVid(originFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
         static VideoWriter bgVid(bgFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        //static VideoWriter motionVid(motionFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
+        static VideoWriter motionVid(motionFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
         static VideoWriter rebuiltVid(rebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
         //static VideoWriter fullRebuiltVid(fullRebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
         DEBUG {
@@ -366,23 +392,16 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         static VideoWriter maskVid(maskFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, maskFG.size(), true);
         originVid.write(frame);
         bgVid.write(frameBGU);
-        //motionVid.write(frameFG);
+        motionVid.write(frameFG);
         rebuiltVid.write(rebuilt);
         //DEBUG fullRebuiltVid.write(full_rebuilt);
         Mat maskFG_RGB;
         cvtColor(maskFG, maskFG_RGB, COLOR_GRAY2RGB);
         maskVid.write(maskFG_RGB);
-        imshow("maskFG",maskFG);
+        imshow("maskFG", maskFG);
         keyboard = waitKey(1);
     }
     if (keyboard != 'q') {
-        //system("rm results/compress/*");
-        //system("ffmpeg -i results/rebuilt/in%d.bmp -vcodec libx264 -pix_fmt yuv420p results/compress/rebuilt.mkv");
-        //system("ffmpeg -i results/bgu/in%d.bmp -vcodec libx264 -pix_fmt yuv420p results/compress/bgu.mkv");
-        //system("ffmpeg -i results/origin/in%d.bmp -vcodec libx264 -pix_fmt yuv420p results/compress/origin.mkv");
-        //system("ls -lh results/compress/");
-        //double psnr_rebuilt = psnr_between_videos(originFilepath, rebuiltFilepath);
-        //double psnr_fullrebuilt = psnr_between_videos(originFilepath, fullRebuiltFilepath);
         //printf("PSNR[BG' + FG']      = %f\n", psnr_rebuilt);
         //printf("PSNR[BG' + FG' + N'] = %f\n", psnr_fullrebuilt);
     }
