@@ -26,6 +26,7 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2) {
             break;
         }
         double psnr_cur = getPSNR(vid1, vid2);
+        if (psnr_cur > 100) psnr_cur = 100;
         std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
         psnr += round(psnr_cur);
         psnr_cnt++;
@@ -49,7 +50,8 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapt
             break;
         }
         double psnr_cur = getPSNR(vid1, vid2, vid_mask);
-        //std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
+        if (psnr_cur > 100) psnr_cur = 100;
+        std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
         psnr += round(psnr_cur);
         psnr_cnt++;
     }
@@ -110,13 +112,34 @@ double getPSNR(const Mat I1, const Mat I2, const Mat mask) {
     absdiff(I1, I2, s1);       // |I1 - I2|
     Mat s2;
     s2 = 0;
+    Scalar num_s = sum(mask);
+
+    /*int v1sum = 0;
+    int v2sum = 0;
+    int v3sum = 0;
+    for (int i = 0; i < mask.rows; i++) {
+        for (int j = 0; j < mask.cols; j++) {
+            Vec3b v1 = mask.at<Vec3b>(i, j);
+            if(v1.val[0] > 0) v1sum++;
+            if(v1.val[1] > 0) v2sum++;
+            if(v1.val[2] > 0) v3sum++;
+        }
+    }
+    printf("v1: %d\n",v1sum);
+    printf("v2: %d\n",v2sum);
+    printf("v3: %d\n",v3sum);
+    printf("num1: %f\n",num_s.val[0]/255);
+    printf("num2: %f\n",num_s.val[1]);
+    printf("num3: %f\n",num_s.val[2]);
+    printf("mask: %dx%d\n\n",mask.cols, mask.rows);
+    */
     s1.copyTo(s2, mask);
     s2.convertTo(s2, CV_32F);  // cannot make a square on 8 bits
     //s1.copyTo(s1, mask);
     s2 = s2.mul(s2);
     static int cnt = 0;
-    Scalar num_s = sum(mask);
 
+    //if(cnt++ > 3) exit(1);
     //std::cout << num_s.val[0] / 255 << endl;
 
     num = static_cast<size_t>(num_s.val[0] / 255);
@@ -127,6 +150,7 @@ double getPSNR(const Mat I1, const Mat I2, const Mat mask) {
 
     double mse = sse / (double) (I1.channels() * num);
     double psnr = 10.0 * log10((255 * 255) / mse);
+
     return psnr;
 }
 

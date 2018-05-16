@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
          << endl;
     if (argc < 3) {
         cerr << "Incorret input list" << endl;
-        return EXIT_FAILURE;
+        return 1;
     }
     std::string argMode = argv[1];
     if (argMode == "-psnr") {
@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
         }
         double psnr = 0;
         if (argc > 4) {
-            VideoCapture video3(argv[4]);
-            psnr = psnr_between_videos(video1, video2, video3);
+            VideoCapture mask(argv[4]);
+            psnr = psnr_between_videos(video1, video2, mask);
         } else {
             psnr = psnr_between_videos(video1, video2);
         }

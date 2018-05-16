@@ -237,12 +237,14 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
     system("mkdir -p results/bgu/");
     system("mkdir -p results/origin/");
     system("mkdir -p results/fg/");
+    system("mkdir -p results/mask/");
 
     system("rm results/rebuilt/*");
     system("rm results/bgu/*");
     system("rm results/compress/*");
     system("rm results/origin/*");
     system("rm results/fg/*");
+    system("rm results/mask/*");
 
     const char *originFilepath = "results/origin.mkv";
     const char *bgFilepath = "results/bg.mkv";
@@ -274,24 +276,6 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         if (frameIdx++ % N == 0) {
             pMOG2->getBackgroundImage(frameBG);
         }
-        //absdiff(img1, img2, diff);
-        //imshow("diff", diff);
-        //threshold(diff, diff, 50, 255, THRESH_BINARY);
-        //Mat cannyTmp1;
-        // cvtColor(diff, gray, CV_RGB2GRAY);
-        //Canny(gray, cannyTmp1, 100, 200, 3);
-        //vector<vector<Point> > contours;
-        //findContours(cannyTmp1, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_TC89_KCOS);
-        // you could also reuse img1 here
-        //Mat mask2 = Mat::zeros(frame.size(), CV_8UC1);
-
-        // CV_FILLED fills the connected components found
-        //drawContours(mask2, contours, -1, Scalar(255), CV_FILLED);
-        //erode(mask2, mask2, element1);
-        //dilate(mask2, mask2, element2);
-
-        //imshow("diff", diff);
-        //imshow("mask2", mask2);
         Mat maskFG = differenceMask(frameBG, frame, thr1);
         erode(maskFG, maskFG, element1);
 //      maskClean = maskClean + cannyTmp1;
@@ -300,15 +284,6 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         //Mat maskNoize = differenceMask(frameBG, frame, thr2);
         //imshow("FG", maskFG);
 
-        //Mat maskClean;
-        //threshold(fgMaskMOG2, maskClean, 200, 255, THRESH_BINARY);
-        //dilate(maskClean, maskClean, element0);
-        //erode(maskClean, maskClean, element1);
-        //erode(maskClean, maskClean, element1);
-        //erode(maskClean, maskClean, element1);
-        //maskClean = maskClean + cannyTmp1;
-        //dilate(maskClean, maskClean, element1);
-        //dilate(maskClean, maskClean, element2);
 
         //imshow("cannydiff", cannyTmp1);
         //imshow("mask", mask2);
@@ -323,9 +298,9 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
          *             Blur frame
          ***************************************/
         Mat frameBlur;
-        frameBG.copyTo(frameBlur,maskFG);
-        frame.copyTo(frameBlur,~maskFG);
-        blur(frameBlur, frameBlur, Size(10, 10));
+        frameBG.copyTo(frameBlur, maskFG);
+        frame.copyTo(frameBlur, ~maskFG);
+        blur(frameBlur, frameBlur, Size(20, 20));
 
         /***************************************
          *            Rebuilt frame
@@ -335,29 +310,30 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         //frameBG.copyTo(rebuilt);
         frameFG.copyTo(rebuilt, maskFG);
 
-        /***************************************
-         *             BGU frame
-         ***************************************/
-        Mat diffMat = differenceMat(frame, rebuilt, thr2);
-        Mat frameBGU = diffMat; //additionMat(frameBG, diffMat);
-        //frame.copyTo(frameBG, maskNoize - maskFG);
-
-        /***************************************
-         *          Full rebuilt frame
-         ***************************************/
-        Mat full_rebuilt(frame.size(), frame.type());
-        rebuilt.copyTo(full_rebuilt);
-        Mat diffMatRebuilt = frameBGU;//differenceMat(frameBG, frameBGU);//frameBGU;
-        full_rebuilt = additionMat(full_rebuilt, diffMatRebuilt);
-
-        /***************************************
-         *             Calc PSNR
-         ***************************************/
-        psnr_rebuilt = getPSNR(frame, rebuilt);//, maskFG);
-        psnr_fullrebuilt = getPSNR(frame, full_rebuilt);
-
         Mat frameCells;
+
+        static double fps = capture.get(CAP_PROP_FPS);
+
+
         DEBUG {
+            /***************************************
+             *             BGU frame
+             ***************************************/
+            Mat diffMat = differenceMat(frame, rebuilt, thr2);
+            Mat frameBGU = diffMat; //additionMat(frameBG, diffMat);
+
+            /***************************************
+             *          Full rebuilt frame
+             ***************************************/
+            Mat full_rebuilt(frame.size(), frame.type());
+            rebuilt.copyTo(full_rebuilt);
+            Mat diffMatRebuilt = frameBGU;//differenceMat(frameBG, frameBGU);//frameBGU;
+            full_rebuilt = additionMat(full_rebuilt, diffMatRebuilt);
+            /***************************************
+             *             Calc PSNR
+             ***************************************/
+            psnr_rebuilt = getPSNR(frame, rebuilt);//, maskFG);
+            psnr_fullrebuilt = getPSNR(frame, full_rebuilt);
             stringstream psnr_rebuilt_stream;
             psnr_rebuilt_stream << fixed << setprecision(2) << psnr_rebuilt;
             stringstream psnr_fullrebuilt_stream;
@@ -371,33 +347,36 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
                                         string("BG[idx=") + to_string((int) floor(frameIdx / N)) + "]", frameBG,
                                         string("FG[thr=") + to_string(thr1) + "]", frameFG,
                                         string("N"), frameBGU);
-        }
-        static double fps = capture.get(CAP_PROP_FPS);
 
-        imwrite("results/rebuilt/in" + to_string(frameIdx) + ".bmp", rebuilt);
-        imwrite("results/bgu/in" + to_string(frameIdx) + ".bmp", frameBGU);
-        imwrite("results/origin/in" + to_string(frameIdx) + ".bmp", frame);
-        imwrite("results/fg/in" + to_string(frameIdx) + ".bmp", frameFG);
+            static VideoWriter originVid(originFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
+            static VideoWriter bgVid(bgFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
+            static VideoWriter motionVid(motionFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
+            static VideoWriter rebuiltVid(rebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
 
-        static VideoWriter originVid(originFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        static VideoWriter bgVid(bgFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        static VideoWriter motionVid(motionFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        static VideoWriter rebuiltVid(rebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        //static VideoWriter fullRebuiltVid(fullRebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
-        DEBUG {
+            originVid.write(frame);
+            bgVid.write(frameBGU);
+            motionVid.write(frameFG);
+            rebuiltVid.write(rebuilt);
+
             static VideoWriter cellsVid(cellsFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frameCells.size(), true);
             cellsVid.write(frameCells);
             imshow("Results", frameCells);
         }
-        static VideoWriter maskVid(maskFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, maskFG.size(), true);
-        originVid.write(frame);
-        bgVid.write(frameBGU);
-        motionVid.write(frameFG);
-        rebuiltVid.write(rebuilt);
+
+        imwrite("results/rebuilt/in" + to_string(frameIdx) + ".bmp", rebuilt);
+        //imwrite("results/bgu/in" + to_string(frameIdx) + ".bmp", frameBGU);
+        imwrite("results/origin/in" + to_string(frameIdx) + ".bmp", frame);
+        //imwrite("results/fg/in" + to_string(frameIdx) + ".bmp", frameFG);
+
+        //static VideoWriter fullRebuiltVid(fullRebuiltFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frame.size(), true);
+
+        //static VideoWriter maskVid(maskFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, maskFG.size(), true);
+
         //DEBUG fullRebuiltVid.write(full_rebuilt);
         Mat maskFG_RGB;
         cvtColor(maskFG, maskFG_RGB, COLOR_GRAY2RGB);
-        maskVid.write(maskFG_RGB);
+        imwrite("results/mask/in" + to_string(frameIdx) + ".bmp", maskFG_RGB);
+        //maskVid.write(maskFG_RGB);
         imshow("maskFG", maskFG);
         keyboard = waitKey(1);
     }
@@ -405,7 +384,6 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         //printf("PSNR[BG' + FG']      = %f\n", psnr_rebuilt);
         //printf("PSNR[BG' + FG' + N'] = %f\n", psnr_fullrebuilt);
     }
-    //delete capture object
     //cellsVid.release();
     capture.release();
 }
