@@ -1,5 +1,7 @@
 cmake-build-debug/
 *.avi
+*.mkv
+*.yuv
 build/
 out/
 .idea/

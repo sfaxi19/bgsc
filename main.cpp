@@ -9,7 +9,7 @@
 using namespace cv;
 using namespace std;
 
-int main(int argc, char *argv[]) {
+void help(){
     cout << "Usage:" << endl
          << "./bgsc -s video.avi thr1 thr2" << endl
          << "\t\t for seporate video on FG BG and N layers" << endl
@@ -19,13 +19,19 @@ int main(int argc, char *argv[]) {
          << "\t\t check PSNR between two video [The use of mask is supported]" << endl
          << "--------------------------------------------------------------------------" << endl
          << endl;
+}
+
+int main(int argc, char *argv[]) {
+
     if (argc < 3) {
+        help();
         cerr << "Incorret input list" << endl;
         return 1;
     }
     std::string argMode = argv[1];
     if (argMode == "-psnr") {
         if (argc < 4) {
+            help();
             cerr << "Incorret input args!" << endl;
             return EXIT_FAILURE;
         }
@@ -51,6 +57,7 @@ int main(int argc, char *argv[]) {
     }
     if (argMode == "-s") {
         if (argc != 6) {
+            help();
             cerr << "Incorret input args!" << endl;
             return EXIT_FAILURE;
         }
@@ -58,6 +65,7 @@ int main(int argc, char *argv[]) {
     }
     if (argMode == "-r") {
         if (argc != 5) {
+            help();
             cerr << "Incorret input args!" << endl;
             return EXIT_FAILURE;
         }

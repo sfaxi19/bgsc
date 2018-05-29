@@ -53,6 +53,9 @@ def x264_process(qp, input_file, output_dir):
     psnr_cmd = subprocess.Popen(psnr_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out1 = psnr_cmd.communicate()
     # print('Bitrate: ' + str(bitrate))
+    if log:
+        print("command: " + str(psnr_command))
+        print(out1)
     psnr = getPSNR(out1)
     # print('PSNR:    ' + str(psnr))
     return bitrate, psnr
@@ -86,7 +89,10 @@ parser.add_argument('--psnr-file', dest='psnr_file',
 parser.add_argument('--mask-file', dest='mask_file',
                     required=True,
                     help='Path to file for calc PSNR for ROI')
-
+parser.add_argument('--log', dest='log',
+                    type=bool, 
+                    default=False, 
+                    help='print log info')
 args = parser.parse_args()
 
 qp_min = args.qp_min
@@ -94,6 +100,7 @@ qp_max = args.qp_max
 qp_step = args.qp_step
 input_file = args.in_file
 output_dir = args.out_dir
+log = args.log
 psnr_file = args.psnr_file
 mask_file = args.mask_file
 ####################################################################

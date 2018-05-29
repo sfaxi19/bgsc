@@ -234,12 +234,16 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
     //Mat fgMaskMOG_noize;
     system("mkdir -p results");
     system("mkdir -p results/rebuilt/");
+    system("mkdir -p results/rebuiltv2/");
+    system("mkdir -p results/rebuiltv3/");
     system("mkdir -p results/bgu/");
     system("mkdir -p results/origin/");
     system("mkdir -p results/fg/");
     system("mkdir -p results/mask/");
 
     system("rm results/rebuilt/*");
+    system("rm results/rebuiltv2/*");
+    system("rm results/rebuiltv3/*");
     system("rm results/bgu/*");
     system("rm results/compress/*");
     system("rm results/origin/*");
@@ -263,7 +267,7 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
 
     int frameIdx = 0;
 
-    while ((char) keyboard != 'q' && (char) keyboard != 27) {
+    while (((char) keyboard != 'q' && (char) keyboard != 27) && (frameIdx < 300)) {
         if (!capture.read(frame)) {
             cerr << "Unable to read next frame." << endl;
             cerr << "Exiting..." << endl;
@@ -274,12 +278,13 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
 
         pMOG2->apply(frame, fgMaskMOG2);
         if (frameIdx++ % N == 0) {
+            //frameIdx++;
             pMOG2->getBackgroundImage(frameBG);
         }
         Mat maskFG = differenceMask(frameBG, frame, thr1);
         erode(maskFG, maskFG, element1);
 //      maskClean = maskClean + cannyTmp1;
-        dilate(maskFG, maskFG, element1);
+        dilate(maskFG, maskFG, element2);
         //dilate(maskFG, maskFG, element1);
         //Mat maskNoize = differenceMask(frameBG, frame, thr2);
         //imshow("FG", maskFG);
@@ -298,41 +303,51 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
          *             Blur frame
          ***************************************/
         Mat frameBlur;
-        frameBG.copyTo(frameBlur, maskFG);
-        frame.copyTo(frameBlur, ~maskFG);
-        blur(frameBlur, frameBlur, Size(20, 20));
-
+        //frameBG.copyTo(frameBlur, maskFG);
+        frame.copyTo(frameBlur);
+        //blur(frameBlur, frameBlur, Size(20, 20));
+        GaussianBlur(frameBlur, frameBlur, Size(31, 31), 0, 0);
         /***************************************
-         *            Rebuilt frame
+         *            Rebuilt frame v1
          ***************************************/
-        Mat rebuilt(frame.size(), frame.type());
-        frameBlur.copyTo(rebuilt);
+        Mat rebuiltv1(frame.size(), frame.type());
+        frameBlur.copyTo(rebuiltv1);
         //frameBG.copyTo(rebuilt);
-        frameFG.copyTo(rebuilt, maskFG);
-
+        frameFG.copyTo(rebuiltv1, maskFG);
+        /***************************************
+         *            Rebuilt frame v2
+         ***************************************/
+        Mat rebuiltv2(frame.size(), frame.type());
+        frameBG.copyTo(rebuiltv2);
+        frameFG.copyTo(rebuiltv2, maskFG);
+        /***************************************
+         *            Rebuilt frame v3
+         ***************************************/
+        Mat rebuiltv3(frame.size(), frame.type());
+        frameBG.copyTo(rebuiltv3);
+        GaussianBlur(rebuiltv3, rebuiltv3, Size(5, 5), 0, 0);
+        frameFG.copyTo(rebuiltv3, maskFG);
+        /***************************************
+         *             BGU frame
+         ***************************************/
+        Mat frameBGU = differenceMat(frame, rebuiltv1, thr2); //additionMat(frameBG, diffMat);
+        
         Mat frameCells;
-
         static double fps = capture.get(CAP_PROP_FPS);
-
-
         DEBUG {
-            /***************************************
-             *             BGU frame
-             ***************************************/
-            Mat diffMat = differenceMat(frame, rebuilt, thr2);
-            Mat frameBGU = diffMat; //additionMat(frameBG, diffMat);
+
 
             /***************************************
              *          Full rebuilt frame
              ***************************************/
             Mat full_rebuilt(frame.size(), frame.type());
-            rebuilt.copyTo(full_rebuilt);
+            rebuiltv1.copyTo(full_rebuilt);
             Mat diffMatRebuilt = frameBGU;//differenceMat(frameBG, frameBGU);//frameBGU;
             full_rebuilt = additionMat(full_rebuilt, diffMatRebuilt);
             /***************************************
              *             Calc PSNR
              ***************************************/
-            psnr_rebuilt = getPSNR(frame, rebuilt);//, maskFG);
+            psnr_rebuilt = getPSNR(frame, rebuiltv1);//, maskFG);
             psnr_fullrebuilt = getPSNR(frame, full_rebuilt);
             stringstream psnr_rebuilt_stream;
             psnr_rebuilt_stream << fixed << setprecision(2) << psnr_rebuilt;
@@ -341,7 +356,7 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
 
             frameCells = ShowManyImages("Result", 6,
                                         string("F"), frame,
-                                        string("F'=BG+FG PSNR[F, F']: ") + psnr_rebuilt_stream.str(), rebuilt,
+                                        string("F'=BG+FG PSNR[F, F']: ") + psnr_rebuilt_stream.str(), rebuiltv1,
                                         string("F''=BG+FG+N PSNR[F, F'']: ") + psnr_fullrebuilt_stream.str(),
                                         full_rebuilt,
                                         string("BG[idx=") + to_string((int) floor(frameIdx / N)) + "]", frameBG,
@@ -356,15 +371,17 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
             originVid.write(frame);
             bgVid.write(frameBGU);
             motionVid.write(frameFG);
-            rebuiltVid.write(rebuilt);
+            rebuiltVid.write(rebuiltv1);
 
             static VideoWriter cellsVid(cellsFilepath, CV_FOURCC('M', 'J', 'P', 'G'), fps, frameCells.size(), true);
             cellsVid.write(frameCells);
             imshow("Results", frameCells);
         }
 
-        imwrite("results/rebuilt/in" + to_string(frameIdx) + ".bmp", rebuilt);
-        //imwrite("results/bgu/in" + to_string(frameIdx) + ".bmp", frameBGU);
+        imwrite("results/rebuilt/in" + to_string(frameIdx) + ".bmp", rebuiltv1);
+        imwrite("results/rebuiltv2/in" + to_string(frameIdx) + ".bmp", rebuiltv2);
+        imwrite("results/rebuiltv3/in" + to_string(frameIdx) + ".bmp", rebuiltv3);
+        imwrite("results/bgu/in" + to_string(frameIdx) + ".bmp", frameBGU);
         imwrite("results/origin/in" + to_string(frameIdx) + ".bmp", frame);
         //imwrite("results/fg/in" + to_string(frameIdx) + ".bmp", frameFG);
 
@@ -377,13 +394,12 @@ void processVideo(char *videoFilename, int thr1, int thr2, int N) {
         cvtColor(maskFG, maskFG_RGB, COLOR_GRAY2RGB);
         imwrite("results/mask/in" + to_string(frameIdx) + ".bmp", maskFG_RGB);
         //maskVid.write(maskFG_RGB);
-        imshow("maskFG", maskFG);
+        //imshow("maskFG", maskFG);
+        imshow("rebuiltv1", rebuiltv1);
+        //imshow("rebuiltv2", rebuiltv2);
         keyboard = waitKey(1);
     }
-    if (keyboard != 'q') {
-        //printf("PSNR[BG' + FG']      = %f\n", psnr_rebuilt);
-        //printf("PSNR[BG' + FG' + N'] = %f\n", psnr_fullrebuilt);
-    }
+
     //cellsVid.release();
     capture.release();
 }
