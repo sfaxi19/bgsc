@@ -44,6 +44,8 @@ def x264_process(qp, input_file, output_dir):
     print('\noutput_file:' + output_file)
     x264_command = ['x264', '--qp', str(qp), '--bframes', '0', '--ipratio', '1', '--output-csp', 'rgb', '--no-deblock',
                     input_file, '-o', output_file]
+    #x264_command = ['x264', '--crf', str(qp), '--bframes', '0', '--no-deblock',
+    #               input_file, '-o', output_file]
     psnr_command = ['bgsc', '-psnr', output_file, psnr_file, mask_file]
     # x264 --qp 1 --ipratio 1 --bframes 0 --output-csp rgb rebuilt/in%d.bmp --no-deblock -o out2.mkv
     x264_cmd = subprocess.Popen(x264_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

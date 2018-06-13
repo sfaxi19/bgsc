@@ -11,7 +11,7 @@
 using namespace cv;
 using namespace std;
 
-double psnr_between_videos(VideoCapture &video1, VideoCapture &video2) {
+double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, int channel) {
     Mat vid1;
     Mat vid2;
     uint64_t psnr = 0;
@@ -25,16 +25,17 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2) {
             cerr << "Exiting..." << endl;
             break;
         }
-        double psnr_cur = getPSNR(vid1, vid2);
+        double psnr_cur = getPSNR(vid1, vid2, channel);
         if (psnr_cur > 100) psnr_cur = 100;
         std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
         psnr += round(psnr_cur);
+
         psnr_cnt++;
     }
     return (double) psnr / psnr_cnt;
 }
 
-double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapture &video3) {
+double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapture &video3, int channel) {
     Mat vid1;
     Mat vid2;
     Mat vid_mask;
@@ -49,7 +50,7 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapt
             cerr << "Exiting..." << endl;
             break;
         }
-        double psnr_cur = getPSNR(vid1, vid2, vid_mask);
+        double psnr_cur = getPSNR(vid1, vid2, vid_mask, channel);
         if (psnr_cur > 100) psnr_cur = 100;
         std::cout << "PSNR[" << frame_idx++ << "] = " << psnr_cur << endl;
         psnr += round(psnr_cur);
@@ -58,16 +59,15 @@ double psnr_between_videos(VideoCapture &video1, VideoCapture &video2, VideoCapt
     return (double) psnr / psnr_cnt;
 }
 
-double psnr_between_videos(const char *filepath1, const char *filepath2, const char *filepath3) {
+double psnr_between_videos(const char *filepath1, const char *filepath2, const char *filepath3, int channel) {
     VideoCapture file1(filepath1);
     VideoCapture file2(filepath2);
     if (filepath3 == nullptr) {
-        return psnr_between_videos(file1, file2);
+        return psnr_between_videos(file1, file2, channel);
     } else {
         VideoCapture file3(filepath3);
-        return psnr_between_videos(file1, file2, file3);
+        return psnr_between_videos(file1, file2, file3, channel);
     }
-
 }
 
 double mssim_between_videos(VideoCapture &video1, VideoCapture &video2) {
@@ -89,21 +89,28 @@ double mssim_between_videos(VideoCapture &video1, VideoCapture &video2) {
     return mssim / mssim_cnt;
 }
 
-double getPSNR(const Mat I1, const Mat I2) {
+double getPSNR(const Mat I1, const Mat I2, int channel) {
     Mat s1;
     absdiff(I1, I2, s1);       // |I1 - I2|
     s1.convertTo(s1, CV_32F);  // cannot make a square on 8 bits
     s1 = s1.mul(s1);           // |I1 - I2|^2
     Scalar s = sum(s1);        // sum elements per channel
+    double sse = 0;
+    int channels = 0;
+    if (channel < 0) {
+        sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+        channels = 3;
+    } else {
+        sse = s.val[channel];
+        channels = 1;
+    }
 
-    double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
-
-    double mse = sse / (double) (I1.channels() * I1.total());
+    double mse = sse / (double) (channels * I1.total());
     double psnr = 10.0 * log10((255 * 255) / mse);
     return psnr;
 }
 
-double getPSNR(const Mat I1, const Mat I2, const Mat mask) {
+double getPSNR(const Mat I1, const Mat I2, const Mat mask, int channel) {
     threshold(mask, mask, 128, 255, CV_8U);
     Mat s1;
     size_t num = 0;
@@ -146,9 +153,17 @@ double getPSNR(const Mat I1, const Mat I2, const Mat mask) {
     if (num == 0) return 0;
     s = sum(s2);
 
-    double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+    double sse = 0;
+    int channels = 0;
+    if (channel < 0) {
+        sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+        channels = 3;
+    } else {
+        sse = s.val[channel];
+        channels = 1;
+    }
 
-    double mse = sse / (double) (I1.channels() * num);
+    double mse = sse / (double) (channels * num);
     double psnr = 10.0 * log10((255 * 255) / mse);
 
     return psnr;

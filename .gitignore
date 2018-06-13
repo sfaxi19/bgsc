@@ -7,3 +7,10 @@ out/
 .idea/
 cmake-build-release/
 resources/
+*.pdf
+*.docx
+*.odt
+*.png
+*.jpg
+*.264
+*.csv

@@ -48,9 +48,9 @@ int main(int argc, char *argv[]) {
         double psnr = 0;
         if (argc > 4) {
             VideoCapture mask(argv[4]);
-            psnr = psnr_between_videos(video1, video2, mask);
+            psnr = psnr_between_videos(video1, video2, mask, 0);
         } else {
-            psnr = psnr_between_videos(video1, video2);
+            psnr = psnr_between_videos(video1, video2, 0);
         }
 
         cout << "PSNR = " << psnr << endl;
