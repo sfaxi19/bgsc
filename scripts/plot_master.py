@@ -2,16 +2,19 @@ import matplotlib.pyplot as plt
 import matplotlib.markers as marks
 import numpy as np
 import sys
+import argparse
 
 def readCSV(filepath):
     file = open(filepath)
     str1 = file.read()
     x_plot = str1.split('\n')[0].replace(',', ' ').split(' ')[:-1]
     y_plot = str1.split('\n')[1].replace(',', ' ').split(' ')[:-1]
+    #print(x_plot)
+    #print(y_plot)
     x_plot = [float(i) for i in x_plot]
     y_plot = [float(i) for i in y_plot]
-    print("x: " + str(x_plot))
-    print("y: " + str(y_plot))
+    #print("x: " + str(x_plot))
+    #print("y: " + str(y_plot))
     pair = [x_plot, y_plot]
     return pair
 
@@ -45,34 +48,51 @@ styles=[
     'D',             #diamond marker
     'd',             #thin_diamond marker
     '|',             #vline marker
-    '_'              #hline marker
+    '_',             #hline marker
+    'ro'
 ]
 #   ================    ===============================
 print(styles)
 ####################################################################
 #                          Input data
 ####################################################################
-args_len = len(sys.argv)
-if(args_len < 2):
-    print("Please add plots")
-    exit(1)
+
+parser = argparse.ArgumentParser(description='Plot master.')
+parser.add_argument('plots', metavar='N', nargs='+',
+                    help='name of files which plot')
+parser.add_argument('--xlabel', dest='xlabel', default="x", #"Bitrate(kbit/s)",
+                    help='xlabel for PyPlot')
+parser.add_argument('--ylabel', dest='ylabel', default="y", #"PSNR_{ROI}  (dB)",
+                    help='ylabel for PyPlot')
+parser.add_argument('--style', dest='style',
+                    help='style for PyPlot')
+parser.add_argument('--title', dest='title', default="Figure",
+                    help='title for PyPlot')
+
+args = parser.parse_args()
+
+print("plots:  " + str(args.plots))
+print("xLabel: " + args.xlabel)
+print("yLabel: " + args.ylabel)
+print("title:  " + args.title)
+
 plots = []
 legends = []
-for i in range(1, len(sys.argv)):
-    plots.append(readCSV(sys.argv[i]))
-    legends.append(sys.argv[i].replace('/','.').split('.')[-2])
+for i in range(0, len(args.plots)):
+    plots.append(readCSV(args.plots[i]))
+    legends.append(args.plots[i].replace('/','.').split('.')[-2])
 
-plots
+#plots
 i = 0
 for p in plots:
     #xnew = np.linspace(min(p[0]), max(p[0]), 1000)
     #power_smooth = BSpline(p[0], p[1], xnew)
     #print(power_smooth)
-    plt.plot(p[0], p[1], styles[i], linewidth=2)
+    plt.plot(p[0], p[1], args.style if (args.style) else styles[++i], linewidth=2)
     i=i+1
-#plt.title('Example')
-plt.ylabel(r'$\mathtt{PSNR_{ROI}  (dB)}$', fontsize=20)
-plt.xlabel(r'$\mathtt{Bitrate(kbit/s)}$', fontsize=20)
+plt.title(args.title)
+plt.ylabel(r'$\mathtt{' + args.ylabel + '}$', fontsize=20)
+plt.xlabel(r'$\mathtt{' + args.xlabel + '}$', fontsize=20)
 plt.legend(legends, loc='lower right')
 plt.grid()
 plt.show()
